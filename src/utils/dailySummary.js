@@ -715,51 +715,89 @@ export function generateHeadline(accountL7, accountP7, patterns) {
 }
 
 export function generateNarrative(accountL7, accountP7, healthScore, patterns, campaignData) {
-  const state    = getAccountState(healthScore).toLowerCase()
-  const roasChg  = pctChg(accountL7.roas, accountP7.roas)
-  const purchChg = pctChg(accountL7.purchases, accountP7.purchases)
-  const cpmChg   = pctChg(accountL7.cpm, accountP7.cpm)
-  const freqChg  = pctChg(accountL7.frequency, accountP7.frequency)
+  const AU$ = v => `A$${v.toFixed(2)}`
+  const roasChg  = pctChg(accountL7.roas,       accountP7.roas)
+  const purchChg = pctChg(accountL7.purchases,   accountP7.purchases)
+  const cpmChg   = pctChg(accountL7.cpm,         accountP7.cpm)
+  const ctrChg   = pctChg(accountL7.ctr,         accountP7.ctr)
+  const freqChg  = pctChg(accountL7.frequency,   accountP7.frequency)
+  const spendChg = pctChg(accountL7.spend,        accountP7.spend)
+  const shortName = n => (n.split(' | ').slice(2).join(' · ') || n).slice(0, 40)
 
-  const trendVerb = Math.abs(roasChg) <= 5 ? 'holding' : roasChg > 5 ? 'rising' : 'falling'
-  const s1 = `Account is in ${state} state — blended p_roas ${trendVerb} at ${accountL7.roas.toFixed(2)}x (${roasChg > 0 ? '+' : ''}${roasChg.toFixed(1)}% vs prior 7 days).`
+  // ── S1: ROAS headline with explanation ───────────────────────────────────
+  let roasVerb, roasWhy
+  if (Math.abs(roasChg) <= 3) {
+    roasVerb = 'holding steady'
+    roasWhy  = `CPM ${cpmChg > 5 ? `up ${cpmChg.toFixed(0)}% — auctions getting more expensive` : cpmChg < -5 ? `down ${Math.abs(cpmChg).toFixed(0)}% — favourable auction conditions` : 'flat'}, CTR ${Math.abs(ctrChg) <= 3 ? 'holding' : ctrChg > 0 ? `up ${ctrChg.toFixed(0)}%` : `down ${Math.abs(ctrChg).toFixed(0)}%`}`
+  } else if (roasChg > 0) {
+    roasVerb = `up ${roasChg.toFixed(0)}% week-on-week`
+    if (cpmChg < -5 && ctrChg >= -3) roasWhy = `CPM dropped ${Math.abs(cpmChg).toFixed(0)}% — cheaper impressions are the main driver, creative engagement is holding`
+    else if (ctrChg > 5) roasWhy = `CTR improved ${ctrChg.toFixed(0)}% — better creative engagement driving more efficient traffic`
+    else if (spendChg > 10) roasWhy = `spend up ${spendChg.toFixed(0)}% with ROAS improving — algorithm finding efficient inventory`
+    else roasWhy = `CPM ${cpmChg > 0 ? `up ${cpmChg.toFixed(0)}%` : `down ${Math.abs(cpmChg).toFixed(0)}%`}, CTR ${ctrChg > 0 ? `up ${ctrChg.toFixed(0)}%` : `down ${Math.abs(ctrChg).toFixed(0)}%`} — net improvement`
+  } else {
+    roasVerb = `down ${Math.abs(roasChg).toFixed(0)}% week-on-week`
+    if (cpmChg > 10 && ctrChg >= -3) roasWhy = `CPM rose ${cpmChg.toFixed(0)}% — auction costs are up, which is the primary drag; creative engagement is not the issue`
+    else if (ctrChg < -10 && cpmChg <= 5) roasWhy = `CTR dropped ${Math.abs(ctrChg).toFixed(0)}% — creative is losing engagement, not a CPM or auction problem`
+    else if (freqChg > 20 && ctrChg < -5) roasWhy = `frequency up ${freqChg.toFixed(0)}% alongside falling CTR — classic fatigue signal; same audience seeing ads too often`
+    else if (cpmChg > 5 && ctrChg < -5) roasWhy = `CPM up ${cpmChg.toFixed(0)}% and CTR down ${Math.abs(ctrChg).toFixed(0)}% simultaneously — both auction pressure and creative fatigue contributing`
+    else roasWhy = `CPM ${cpmChg > 0 ? `up ${cpmChg.toFixed(0)}%` : `flat`}, CTR ${ctrChg < 0 ? `down ${Math.abs(ctrChg).toFixed(0)}%` : 'flat'}, frequency at ${accountL7.frequency.toFixed(2)}`
+  }
+  const s1 = `ROAS is ${roasVerb} at ${accountL7.roas.toFixed(2)}x (${AU$(accountL7.spend)} spend, ${Math.round(accountL7.purchases)} purchases). ${roasWhy.charAt(0).toUpperCase() + roasWhy.slice(1)}.`
 
-  const purchDir = purchChg >= 0 ? 'up' : 'down'
-  let context
-  if (purchChg < -5) context = `CPM ${cpmChg >= 0 ? 'up' : 'down'} ${Math.abs(cpmChg).toFixed(0)}% over the same period`
-  else if (roasChg < -5) context = `average frequency at ${accountL7.frequency.toFixed(2)} (${freqChg > 0 ? '+' : ''}${freqChg.toFixed(1)}% w/w)`
-  else context = `CPM at A$${accountL7.cpm.toFixed(2)} (${cpmChg > 0 ? '+' : ''}${cpmChg.toFixed(1)}% vs prior week)`
-  const s2 = `Purchases ${purchDir} ${Math.abs(purchChg).toFixed(0)}% week-over-week, with ${context}.`
+  // ── S2: Purchase volume context ───────────────────────────────────────────
+  let s2 = ''
+  if (Math.abs(purchChg) > 5) {
+    const dir = purchChg > 0 ? `up ${purchChg.toFixed(0)}%` : `down ${Math.abs(purchChg).toFixed(0)}%`
+    if (purchChg < -5 && cpmChg > 10) s2 = `Purchases ${dir} week-on-week — the drop is consistent with rising CPM squeezing reach and volume, not a conversion rate problem.`
+    else if (purchChg < -5 && ctrChg < -10) s2 = `Purchases ${dir} — weaker CTR means fewer people are clicking through to purchase; check whether the creative is still resonant or if a refresh is due.`
+    else if (purchChg > 10 && spendChg < 5) s2 = `Purchases ${dir} without a meaningful spend increase — the account is converting more efficiently this week.`
+    else if (purchChg > 10 && spendChg > 10) s2 = `Purchases ${dir} with spend also ${spendChg > 0 ? 'up' : 'down'} ${Math.abs(spendChg).toFixed(0)}% — volume growth is budget-driven rather than efficiency-driven.`
+    else s2 = `Purchases ${dir} week-on-week.`
+  }
 
-  const top = patterns[0]
-  const s3  = top
-    ? `The story today is ${top.pattern_name.toLowerCase()} — ${top.observation.split('.')[0].toLowerCase()}.`
-    : 'No dominant pattern detected — account metrics are in steady state.'
+  // ── S3: Campaign breakdown ────────────────────────────────────────────────
+  let s3 = ''
+  if (campaignData.length > 0) {
+    const active = campaignData.filter(c => c.l7.spend > 50)
+    if (active.length >= 2) {
+      const bySpend = [...active].sort((a, b) => b.l7.spend - a.l7.spend)
+      const biggest = bySpend[0]
+      const spendShare = biggest.spendSharePct ?? (biggest.l7.spend / accountL7.spend * 100)
+      const byRoas   = [...active].sort((a, b) => b.l7.roas - a.l7.roas)
+      const best     = byRoas[0]
+      const worst    = byRoas[byRoas.length - 1]
+      const roasRange = best.l7.roas > 0 && worst.l7.roas > 0 && best !== worst
 
-  // Bright spot / watch
-  let s4 = ''
-  if (campaignData.length >= 2) {
-    const best  = [...campaignData].sort((a, b) => b.l7.roas - a.l7.roas)[0]
-    const worst = [...campaignData].sort((a, b) => a.l7.roas - b.l7.roas)[0]
-    const short = n => n.split(' | ').slice(2, 4).join(' · ').slice(0, 36) || n.slice(0, 36)
-    if (best.l7.roas > accountL7.roas * 1.2) {
-      s4 = `Bright spot: ${short(best.name)} at ${best.l7.roas.toFixed(2)}x p_roas.`
-    } else if (worst.l7.roas > 0 && worst.l7.roas < accountL7.roas * 0.6) {
-      s4 = `Watch: ${short(worst.name)} dragging at ${worst.l7.roas.toFixed(2)}x p_roas — review before it scales further.`
+      let campaignSentence = `${shortName(biggest.name)} is absorbing ${spendShare.toFixed(0)}% of spend at ${biggest.l7.roas.toFixed(2)}x ROAS`
+      if (roasRange && best.name !== biggest.name) {
+        campaignSentence += `; strongest performer is ${shortName(best.name)} at ${best.l7.roas.toFixed(2)}x`
+      }
+      if (roasRange && worst.l7.roas < accountL7.roas * 0.7) {
+        campaignSentence += `; ${shortName(worst.name)} is dragging at ${worst.l7.roas.toFixed(2)}x`
+      }
+      s3 = campaignSentence + '.'
     }
   }
 
-  // Incremental headline
-  const gap = accountL7.roasGapPct
+  // ── S4: Pattern or frequency note ────────────────────────────────────────
+  let s4 = ''
+  const top = patterns[0]
+  if (top) {
+    s4 = `Key signal: ${top.pattern_name} — ${top.observation.split('.')[0].toLowerCase()}.`
+  } else if (accountL7.frequency > 3.5) {
+    s4 = `Average frequency is ${accountL7.frequency.toFixed(2)} — above 3.5 is a fatigue risk; monitor CTR trend at the ad level.`
+  }
+
+  // ── S5: Incremental ───────────────────────────────────────────────────────
   let s5 = ''
-  if (gap != null) {
-    const pct = (100 - gap).toFixed(0)
-    if (gap < ROAS_GAP_GENUINE) {
-      s5 = `Incremental view: roas_gap ${gap.toFixed(0)}% — ${pct}% of platform revenue is genuinely incremental.`
-    } else if (gap < ROAS_GAP_AMBER) {
-      s5 = `Incremental view: roas_gap ${gap.toFixed(0)}% (monitor) — ${pct}% of platform revenue is incremental; some attribution noise present.`
-    } else {
-      s5 = `Incremental view: roas_gap ${gap.toFixed(0)}% — only ${pct}% of platform revenue is incremental. Meta is over-claiming; investigate high-gap entities.`
+  const gap = accountL7.roasGapPct
+  if (gap != null && gap > 0) {
+    const iRoas = accountL7.iRoas
+    if (gap >= ROAS_GAP_AMBER) {
+      s5 = `Attribution gap is ${gap.toFixed(0)}% — platform reports ${accountL7.roas.toFixed(2)}x but incremental ROAS is ${iRoas > 0 ? iRoas.toFixed(2) + 'x' : 'unavailable'}. Meta is likely taking credit for organic conversions; check view-through windows and retargeting overlap.`
+    } else if (gap >= ROAS_GAP_GENUINE) {
+      s5 = `Attribution gap at ${gap.toFixed(0)}% — some over-reporting present but within a manageable range.`
     }
   }
 

@@ -422,13 +422,11 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
       {/* ── Header card ──────────────────────────────────────────────────── */}
       <div className="card" style={{ padding: '16px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 11, color: '#A3A3A3' }}>{today}</span>
-            </div>
-            {headline && (
-              <p style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', margin: 0, letterSpacing: '-0.01em', lineHeight: 1.4 }}>
-                {headline.charAt(0).toUpperCase() + headline.slice(1)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+            <span style={{ fontSize: 11, color: '#A3A3A3' }}>{today}</span>
+            {narrative && (
+              <p style={{ fontSize: 13, color: '#3D3D3D', margin: 0, lineHeight: 1.75 }}>
+                {narrative}
               </p>
             )}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -451,10 +449,6 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
                 <span style={{ fontSize: 12, color: '#A3A3A3' }}>No actions flagged today</span>
               )}
             </div>
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#1A1A1A', letterSpacing: '-0.02em' }}>{healthScore}</div>
-            <div style={{ fontSize: 11, color: '#A3A3A3' }}>health score</div>
           </div>
         </div>
       </div>
