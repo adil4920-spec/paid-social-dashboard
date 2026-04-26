@@ -424,10 +424,12 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
             <span style={{ fontSize: 11, color: '#A3A3A3' }}>{today}</span>
-            {narrative && (
-              <p style={{ fontSize: 13, color: '#3D3D3D', margin: 0, lineHeight: 1.75 }}>
-                {narrative}
-              </p>
+            {narrative && narrative.length > 0 && (
+              <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {narrative.map((bullet, i) => (
+                  <li key={i} style={{ fontSize: 13, color: '#3D3D3D', lineHeight: 1.65 }}>{bullet}</li>
+                ))}
+              </ul>
             )}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {totalScale > 0 && (

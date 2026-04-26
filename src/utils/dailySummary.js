@@ -801,5 +801,5 @@ export function generateNarrative(accountL7, accountP7, healthScore, patterns, c
     }
   }
 
-  return [s1, s2, s3, s4, s5].filter(Boolean).join(' ')
+  return [s1, s2, s3, s4, s5].filter(Boolean)
 }
