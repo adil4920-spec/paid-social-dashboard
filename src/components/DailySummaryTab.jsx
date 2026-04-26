@@ -266,7 +266,7 @@ function ScaleCutPanel({ scale, cut, emptyMsg }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: hasScale && hasCut ? '1fr 1fr' : '1fr', gap: 12 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: hasScale && hasCut ? 'repeat(auto-fill, minmax(340px, 1fr))' : '1fr', gap: 12 }}>
       {hasScale && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -414,7 +414,7 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 900 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── Header card ──────────────────────────────────────────────────── */}
       <div className="card" style={{ padding: '16px 20px' }}>

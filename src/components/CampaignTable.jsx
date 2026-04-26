@@ -584,7 +584,7 @@ function AdView({ campaign, adset, ad, filteredRows, onBackToAdset, onBackToCamp
 
       {/* Two-column layout when preview is available */}
       {previewLink ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', gap: 20, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20, alignItems: 'start' }}>
           <AdPreviewCard previewLink={previewLink} />
           <MetricChart rawRows={rawRows} />
         </div>
@@ -884,7 +884,7 @@ function CampaignOverview({ filteredRows }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Metric cards with sparklines */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {cards.map(c => {
           const delta = halfDelta(c.metricKey, c.higherIsBetter)
           const sparkVals = dailyData.map(d => d[c.metricKey])

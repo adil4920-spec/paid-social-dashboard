@@ -871,7 +871,7 @@ export default function MorningSnapshotTab({ rows = [], targets = {}, dateRange 
       )}
 
       {/* Account Pulse */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
         {[
           { label: 'Yesterday Spend',  value: AU$(yAgg.spend),            sub: `${yM.roas.toFixed(2)}x ROAS`,               color: '#1A1A1A'    },
           { label: 'MTD Pacing',       value: `${pacingPct}%`,            sub: `${AU$(mtdAgg.spend)} of ${AU$(idealSpend)}`, color: paceColor    },
@@ -892,7 +892,7 @@ export default function MorningSnapshotTab({ rows = [], targets = {}, dateRange 
       </div>
 
       {/* Two-column body */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 16, alignItems: 'start' }}>
 
         {/* Left */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -925,7 +925,7 @@ export default function MorningSnapshotTab({ rows = [], targets = {}, dateRange 
           <div className="card" style={{ padding: 20 }}>
             <SectionHeader title="Account Structure" subtitle="Active counts and spend concentration (MTD)" />
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10, marginBottom: 16 }}>
               {[
                 { label: 'Campaigns', value: campaigns.length },
                 { label: 'Ad Sets',   value: adsets.length   },
@@ -979,7 +979,7 @@ export default function MorningSnapshotTab({ rows = [], targets = {}, dateRange 
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
           {[
             { label: 'Scale',   count: cs.scale.length,   color: '#15803D', bg: 'rgba(22,163,74,0.07)',   pct: cs.scalePct   },
             { label: 'Monitor', count: cs.monitor.length, color: '#92400E', bg: 'rgba(245,158,11,0.07)',  pct: cs.monitorPct },
@@ -1035,7 +1035,7 @@ export default function MorningSnapshotTab({ rows = [], targets = {}, dateRange 
         {/* Metric trends grid */}
         <div>
           <p style={{ fontSize: 11, fontWeight: 600, color: '#A3A3A3', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 10px' }}>{rangeLabel} trends</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
               {[
                 { label: 'ROAS',        values: roasSparkline,  color: '#1E3A8A', fmt: v => v.toFixed(2) + 'x',  higherBetter: true,  periodValue: rangeM.roas },
                 { label: 'CTR',         values: ctrSparkline,   color: '#0ea5e9', fmt: v => v.toFixed(2) + '%',  higherBetter: true,  periodValue: rangeM.ctr },
