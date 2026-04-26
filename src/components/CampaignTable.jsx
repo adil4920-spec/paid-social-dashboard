@@ -451,7 +451,7 @@ function MetricChart({ rawRows }) {
           </button>
         ))}
       </div>
-      <div style={{ height: 240 }}>
+      <div style={{ height: 360 }}>
         {dailyRows.length >= 2
           ? <Line data={chartData} options={chartOpts} />
           : <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -789,18 +789,8 @@ function AdView({ campaign, adset, ad, filteredRows, onBackToAdset, onBackToCamp
 
       <SummaryStats totals={totals} levelLabel="Ad" name={ad.ad_name} />
 
-      {/* Two-column layout when preview is available */}
-      {previewLink ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 20, alignItems: 'start' }}>
-          <AdPreviewCard previewLink={previewLink} />
-          <MetricChart rawRows={rawRows} />
-        </div>
-      ) : (
-        <>
-          <AdPreviewCard previewLink={null} />
-          <MetricChart rawRows={rawRows} />
-        </>
-      )}
+      <MetricChart rawRows={rawRows} />
+      <AdPreviewCard previewLink={previewLink} />
     </div>
   )
 }
