@@ -246,7 +246,7 @@ const SECTIONS = [
 export default function GlossaryTab() {
   const [search, setSearch] = useState('')
   const [openSections, setOpenSections] = useState(() =>
-    Object.fromEntries(SECTIONS.map(s => [s.title, true]))
+    Object.fromEntries(SECTIONS.map(s => [s.title, false]))
   )
 
   const query = search.toLowerCase().trim()
