@@ -354,6 +354,18 @@ function SortableTable({ data, nameKey, nameLabel, onRowClick, rawRows, cols = C
           </tr>
         </thead>
         <tbody>
+          {/* Pinned Account Total row */}
+          <tr style={{ background: '#FAFAF9', borderBottom: '2px solid #EFEFEC' }}>
+            {allCols.map(col => (
+              <td key={col.key} className="py-2.5 pr-4 last:pr-0 text-sm font-semibold"
+                  style={{ whiteSpace: 'nowrap', color: '#374151' }}>
+                {col.isName
+                  ? <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#737373' }}>Account Total</span>
+                  : fmtCol(col, totals)
+                }
+              </td>
+            ))}
+          </tr>
           {sorted.map((row, i) => (
             <tr key={i}
                 className={onRowClick ? 'cursor-pointer transition-colors' : ''}
@@ -375,18 +387,6 @@ function SortableTable({ data, nameKey, nameLabel, onRowClick, rawRows, cols = C
               ))}
             </tr>
           ))}
-          {/* Totals row */}
-          <tr style={{ borderTop: '2px solid #f3f4f6', background: '#fafafa' }}>
-            {allCols.map(col => (
-              <td key={col.key} className="py-2.5 pr-4 last:pr-0 text-sm font-semibold"
-                  style={{ whiteSpace: 'nowrap', color: '#374151' }}>
-                {col.isName
-                  ? <span className="text-[11px] font-bold uppercase tracking-wider text-[#9ca3af]">Total</span>
-                  : fmtCol(col, totals)
-                }
-              </td>
-            ))}
-          </tr>
         </tbody>
       </table>
     </div>
