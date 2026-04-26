@@ -468,6 +468,7 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
         <CollapsibleCard
           title="Ads"
           count={decisions.ads.scale.length + decisions.ads.cut.length || null}
+          defaultOpen={false}
         >
           <ScaleCutPanel
             scale={decisions.ads.scale}
@@ -479,6 +480,7 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
         <CollapsibleCard
           title="Ad sets"
           count={decisions.adsets.scale.length + decisions.adsets.cut.length || null}
+          defaultOpen={false}
         >
           <ScaleCutPanel
             scale={decisions.adsets.scale}
@@ -490,6 +492,7 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
         <CollapsibleCard
           title="Campaigns"
           count={decisions.campaigns.scale.length + decisions.campaigns.cut.length || null}
+          defaultOpen={false}
         >
           <ScaleCutPanel
             scale={decisions.campaigns.scale}
