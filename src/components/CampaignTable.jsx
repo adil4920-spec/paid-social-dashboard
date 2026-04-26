@@ -8,17 +8,25 @@ import {
 } from '../utils/metrics'
 import { fmtValue } from '../utils/currency'
 import { computeWindowData } from '../utils/dailySummary'
+import { computeAdMetrics, computeAdPercentiles, computeAccountMedians } from '../utils/creativeMetrics'
 
-// ── Campaign signals ──────────────────────────────────────────────────────────
+// ── Campaign / adset / ad signals ─────────────────────────────────────────────
 const SIGNAL_CFG = {
-  'Scale':                   { label: 'Scale ↑',     color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
-  'Volume opportunity':      { label: 'Scale ↑',     color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
-  'Defund':                  { label: 'Cut ↓',       color: '#B91C1C', bg: 'rgba(185,28,28,0.08)',   border: 'rgba(185,28,28,0.25)'   },
-  'Restructure':             { label: 'Restructure', color: '#C2410C', bg: 'rgba(194,65,12,0.08)',   border: 'rgba(194,65,12,0.25)'   },
-  'Investigate attribution': { label: 'Investigate', color: '#92400E', bg: 'rgba(146,64,14,0.08)',   border: 'rgba(146,64,14,0.25)'   },
-  'Monitor':                 { label: 'Monitor',     color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
-  'Too new':                 { label: 'Too new',     color: '#6B7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)'  },
-  'Healthy':                 { label: 'Hold',        color: '#6B7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)'  },
+  'Scale':                   { label: 'Scale ↑',           color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
+  'Volume opportunity':      { label: 'Scale ↑',           color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
+  'Cap too tight':           { label: 'Cap too tight ↑',   color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
+  'Defund':                  { label: 'Cut ↓',             color: '#B91C1C', bg: 'rgba(185,28,28,0.08)',   border: 'rgba(185,28,28,0.25)'   },
+  'Kill':                    { label: 'Pause ✕',           color: '#B91C1C', bg: 'rgba(185,28,28,0.08)',   border: 'rgba(185,28,28,0.25)'   },
+  'Underperforming':         { label: 'Underperforming',   color: '#C2410C', bg: 'rgba(194,65,12,0.08)',   border: 'rgba(194,65,12,0.25)'   },
+  'Restructure':             { label: 'Restructure',       color: '#C2410C', bg: 'rgba(194,65,12,0.08)',   border: 'rgba(194,65,12,0.25)'   },
+  'Refresh audience':        { label: 'Refresh audience',  color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
+  'Refresh soon':            { label: 'Refresh soon',      color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
+  'Audience saturated':      { label: 'Audience saturated',color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
+  'Investigate attribution': { label: 'Investigate',       color: '#92400E', bg: 'rgba(146,64,14,0.08)',   border: 'rgba(146,64,14,0.25)'   },
+  'Monitor':                 { label: 'Monitor',           color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
+  'Inconsistent':            { label: 'Inconsistent',      color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
+  'Too new':                 { label: 'Too new',           color: '#6B7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)'  },
+  'Healthy':                 { label: 'Hold',              color: '#6B7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)'  },
 }
 
 function buildCampaignDetail(c) {
@@ -59,6 +67,85 @@ function buildCampaignDetail(c) {
     reasoning = `Only ${c.daysActive} days of data — not enough to make a reliable call. Check back after at least 7 days.`
   } else {
     reasoning = `Performance is stable within normal range. Hold at current budget and monitor.`
+  }
+
+  return { cfg, bullets, reasoning }
+}
+
+function buildAdsetDetail(a) {
+  const cfg = SIGNAL_CFG[a.adset_health] ?? SIGNAL_CFG['Healthy']
+  const h   = a.adset_health
+  const gap = a.roasGapPct
+
+  const bullets = [
+    `L7 ROAS ${a.l7.roas.toFixed(2)}x · A$${Math.round(a.l7.spend)} spend · Freq ${a.l7.frequency.toFixed(2)} · Trend: ${a.trendDirection}`,
+    a.l7.iRoas > 0 ? `Incremental ROAS ${a.l7.iRoas.toFixed(2)}x${gap != null ? ` · Attribution gap ${gap.toFixed(0)}%` : ''}` : null,
+    `Saturation score ${a.saturationScore}/100 · Reach ${a.reachGrowth >= 0 ? '+' : ''}${a.reachGrowth.toFixed(0)}% WoW`,
+  ].filter(Boolean)
+
+  let reasoning
+  if (h === 'Scale') {
+    reasoning = `Top-quartile ROAS with healthy frequency (${a.l7.frequency.toFixed(2)}) and a ${a.trendDirection.toLowerCase()} trend. Incremental signals confirm genuine lift. Increase budget 20–30%.`
+  } else if (h === 'Cap too tight') {
+    reasoning = `Strong platform and incremental rankings with CPA below account floor — the algorithm is under-delivering relative to its performance. Raise the budget cap.`
+  } else if (h === 'Kill') {
+    if (a.l7.frequency > 4.5) {
+      reasoning = `Frequency ${a.l7.frequency.toFixed(2)}x over 7 days — audience is over-exposed and performance is breaking down. Pause and build a new audience or refresh creative.`
+    } else if (gap != null && gap > 80) {
+      reasoning = `Attribution gap ${gap.toFixed(0)}% — Meta is taking credit for conversions that would have happened anyway. Real incremental ROAS is ${a.l7.iRoas.toFixed(2)}x. Pause or significantly reduce budget.`
+    } else {
+      reasoning = `Both platform and incremental ROAS are in the bottom 20% of active ad sets with no recovery signal. Pause.`
+    }
+  } else if (h === 'Restructure') {
+    reasoning = `High frequency or major attribution inflation is distorting results. The ad set structure — audience definition or bid strategy — needs rethinking before more budget is committed.`
+  } else if (h === 'Refresh audience') {
+    reasoning = `Saturation score ${a.saturationScore}/100 and reach growth slowing — the addressable pool is shrinking. New audience seeds or broader targeting needed before this ad set can scale further.`
+  } else if (h === 'Underperforming') {
+    reasoning = `Below-median ROAS with no improving trend. Not at kill threshold yet but not worthy of additional budget. Hold or reduce.`
+  } else if (h === 'Monitor') {
+    reasoning = `Attribution gap or volatile trend makes this ad set unclear. Watch L7 metrics over the next 3–5 days before acting.`
+  } else if (h === 'Too new') {
+    reasoning = `Only ${a.daysActive} days of data — not enough signal yet. Check back after at least 7 days.`
+  } else {
+    reasoning = `Performance is holding within normal range. No action needed — continue monitoring.`
+  }
+
+  return { cfg, bullets, reasoning }
+}
+
+function buildAdDetail(ad) {
+  const cfg = SIGNAL_CFG[ad.creativeHealth] ?? SIGNAL_CFG['Healthy']
+  const h   = ad.creativeHealth
+
+  const bullets = [
+    `ROAS ${ad.roas.toFixed(2)}x · A$${Math.round(ad.spend)} spend · ${ad.daysActive} days active · Trend: ${ad.trendDirection}`,
+    `Fatigue ${ad.fatigueScore}/100 · Freq ${ad.frequency.toFixed(2)} · Spend velocity ${ad.spendVelocity.toFixed(2)}x`,
+    `Thumb stop ${(ad.thumbStop * 100).toFixed(1)}% · Hook rate ${(ad.hookRate * 100).toFixed(1)}% · Hold rate ${(ad.holdRate * 100).toFixed(1)}%`,
+  ]
+
+  let reasoning
+  if (h === 'Scale') {
+    reasoning = `Top-quartile ROAS with fatigue score ${ad.fatigueScore}/100 and frequency ${ad.frequency.toFixed(2)} — creative and audience are both healthy. Meta is ${ad.spendVelocity >= 1.0 ? 'actively increasing' : 'maintaining'} delivery (velocity ${ad.spendVelocity.toFixed(2)}x). Increase budget 20–35%.`
+  } else if (h === 'Kill') {
+    if (ad.fatigueScore > 80) {
+      reasoning = `Fatigue score ${ad.fatigueScore}/100 exceeds the kill threshold. CTR and thumb-stop have dropped sharply week-over-week — the audience has over-indexed on this creative. Pause and replace.`
+    } else {
+      reasoning = `ROAS ${ad.roas.toFixed(2)}x in the bottom tier with A$${Math.round(ad.spend)} spent over ${ad.daysActive} days — no recovery path. Pause.`
+    }
+  } else if (h === 'Refresh soon') {
+    reasoning = `Fatigue score ${ad.fatigueScore}/100 is in the watch zone. CTR or thumb-stop declining week-over-week. Brief a replacement creative now before performance fully breaks.`
+  } else if (h === 'Audience saturated') {
+    reasoning = `Creative engagement metrics are holding but the audience pool is exhausting — CPM rising and reach plateauing. New audiences or broader targeting will fix this, not new creative.`
+  } else if (h === 'Underperforming') {
+    reasoning = `Below-median ROAS with no strong engagement signals. Not at kill threshold yet but not worthy of additional budget. Hold.`
+  } else if (h === 'Inconsistent') {
+    reasoning = `ROAS is volatile day-to-day — likely delivery or audience fluctuation. Hold spend steady and wait for a clearer signal before acting.`
+  } else if (h === 'Monitor') {
+    reasoning = `Fatigue score ${ad.fatigueScore}/100 is rising but not at action threshold yet. Watch CTR and thumb-stop trend over the next 3–5 days.`
+  } else if (h === 'Too new') {
+    reasoning = `Only ${ad.daysActive} days with A$${Math.round(ad.spend)} spent — not enough signal to evaluate. Check back after 7+ days.`
+  } else {
+    reasoning = `Performance is healthy. Fatigue score ${ad.fatigueScore}/100 is low and ROAS is holding. No action needed.`
   }
 
   return { cfg, bullets, reasoning }
@@ -1063,7 +1150,7 @@ function CampaignOverview({ filteredRows }) {
 }
 
 // ── Level 1: Campaign list ─────────────────────────────────────────────────
-function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSelectAd, cols, picker, groupId, setGroupId, signalMap }) {
+function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSelectAd, cols, picker, groupId, setGroupId, signalMaps }) {
   const groupOpt = GROUP_TABS.find(t => t.id === groupId)
   const [search, setSearch] = useState('')
 
@@ -1129,7 +1216,12 @@ function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSel
           }
           rawRows={filteredRows}
           cols={cols}
-          signals={groupId === 'campaign_name' ? signalMap : undefined}
+          signals={
+            groupId === 'campaign_name' ? signalMaps?.campaign :
+            groupId === 'adsetName'     ? signalMaps?.adset    :
+            groupId === 'ad_name'       ? signalMaps?.ad       :
+            undefined
+          }
         />
       </div>
     </div>
@@ -1148,14 +1240,30 @@ export default function CampaignTable({ filteredRows, rows }) {
 
   const cols = COL_SETS[colSet] ?? COL_SETS.standard
 
-  const signalMap = useMemo(() => {
+  const signalMaps = useMemo(() => {
     const src = rows?.length ? rows : filteredRows
-    if (!src.length) return {}
+    if (!src.length) return { campaign: {}, adset: {}, ad: {} }
     const maxDate = src.reduce((m, r) => r.date > m ? r.date : m, src[0].date)
-    const { campaignData } = computeWindowData(src, maxDate)
-    const map = {}
-    for (const c of campaignData) map[c.name] = buildCampaignDetail(c)
-    return map
+    const { campaignData, adsetData } = computeWindowData(src, maxDate)
+
+    const campaign = {}
+    for (const c of campaignData) campaign[c.name] = buildCampaignDetail(c)
+
+    const adset = {}
+    for (const a of adsetData) adset[a.name] = buildAdsetDetail(a)
+
+    const adGroups = {}
+    for (const r of src) {
+      if (!r.ad_name) continue
+      if (!adGroups[r.ad_name]) adGroups[r.ad_name] = []
+      adGroups[r.ad_name].push(r)
+    }
+    const medians  = computeAccountMedians(adGroups)
+    const rawAds   = Object.entries(adGroups).map(([name, adRows]) => computeAdMetrics(name, adRows, maxDate, medians))
+    const adSignal = {}
+    for (const a of computeAdPercentiles(rawAds)) adSignal[a.ad_name] = buildAdDetail(a)
+
+    return { campaign, adset, ad: adSignal }
   }, [rows, filteredRows])
 
   const picker = <ColPicker colSet={colSet} setColSet={setColSet} />
@@ -1210,7 +1318,7 @@ export default function CampaignTable({ filteredRows, rows }) {
         picker={picker}
         groupId={groupId}
         setGroupId={setGroupId}
-        signalMap={signalMap}
+        signalMaps={signalMaps}
       />
     )
   }
