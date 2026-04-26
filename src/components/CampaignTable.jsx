@@ -806,7 +806,7 @@ function AdView({ campaign, adset, ad, filteredRows, onBackToAdset, onBackToCamp
 }
 
 // ── Level 3: Adset view (ads + trend) ─────────────────────────────────────
-function AdsetView({ campaign, adset, filteredRows, onBackToCampaign, onBackToAll, onSelectAd, cols }) {
+function AdsetView({ campaign, adset, filteredRows, onBackToCampaign, onBackToAll, onSelectAd, cols, signalMaps }) {
   const rawRows = useMemo(() =>
     filteredRows.filter(r => r.adsetName === adset.adsetName)
   , [filteredRows, adset])
@@ -835,6 +835,7 @@ function AdsetView({ campaign, adset, filteredRows, onBackToCampaign, onBackToAl
           onRowClick={onSelectAd}
           rawRows={rawRows}
           cols={cols}
+          signals={signalMaps?.ad}
         />
       </div>
     </div>
@@ -842,7 +843,7 @@ function AdsetView({ campaign, adset, filteredRows, onBackToCampaign, onBackToAl
 }
 
 // ── Level 2: Campaign view (adsets + trend) ────────────────────────────────
-function CampaignView({ campaign, filteredRows, onBack, onSelectAdset, cols }) {
+function CampaignView({ campaign, filteredRows, onBack, onSelectAdset, cols, signalMaps }) {
   const rawRows = useMemo(() =>
     filteredRows.filter(r => r.campaign_name === campaign.campaign_name)
   , [filteredRows, campaign])
@@ -870,6 +871,7 @@ function CampaignView({ campaign, filteredRows, onBack, onSelectAdset, cols }) {
           onRowClick={onSelectAdset}
           rawRows={rawRows}
           cols={cols}
+          signals={signalMaps?.adset}
         />
       </div>
     </div>
@@ -1288,6 +1290,7 @@ export default function CampaignTable({ filteredRows, rows }) {
         onBackToAll={() => { setCampaign(null); setAdset(null); setDrillView('campaigns') }}
         onSelectAd={a => { setAd(a); setDrillView('ad') }}
         cols={cols}
+        signalMaps={signalMaps}
       />
     )
     if (drillView === 'campaign') return (
@@ -1297,6 +1300,7 @@ export default function CampaignTable({ filteredRows, rows }) {
         onBack={() => { setCampaign(null); setDrillView('campaigns') }}
         onSelectAdset={a => { setAdset(a); setDrillView('adset') }}
         cols={cols}
+        signalMaps={signalMaps}
       />
     )
     return (
