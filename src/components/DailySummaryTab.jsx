@@ -266,10 +266,11 @@ function ScaleCutPanel({ scale, cut, emptyMsg }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: hasScale && hasCut ? 'repeat(auto-fill, minmax(340px, 1fr))' : '1fr', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {hasScale && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#15803D', flexShrink: 0 }} />
             <span style={{ fontSize: 11, fontWeight: 600, color: '#15803D', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Scale</span>
             <span style={{ fontSize: 11, color: '#A3A3A3' }}>{scale.length}</span>
           </div>
@@ -278,9 +279,11 @@ function ScaleCutPanel({ scale, cut, emptyMsg }) {
           </div>
         </div>
       )}
+      {hasScale && hasCut && <div style={{ height: 1, background: '#EFEFEC' }} />}
       {hasCut && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#B91C1C', flexShrink: 0 }} />
             <span style={{ fontSize: 11, fontWeight: 600, color: '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cut</span>
             <span style={{ fontSize: 11, color: '#A3A3A3' }}>{cut.length}</span>
           </div>
@@ -421,7 +424,6 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <StateBadge state={accountState} />
               <span style={{ fontSize: 11, color: '#A3A3A3' }}>{today}</span>
             </div>
             {headline && (
@@ -455,14 +457,6 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
             <div style={{ fontSize: 11, color: '#A3A3A3' }}>health score</div>
           </div>
         </div>
-      </div>
-
-      {/* ── Section 1: State of Play ─────────────────────────────────────── */}
-      <div>
-        <p style={{ fontSize: 11, fontWeight: 600, color: '#A3A3A3', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>
-          State of play
-        </p>
-        <NarrativeBlock text={narrative} />
       </div>
 
       {/* ── Section 2: Scale / Cut ───────────────────────────────────────── */}
