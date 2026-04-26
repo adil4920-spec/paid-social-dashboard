@@ -1,181 +1,114 @@
-import React from 'react'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js'
+import React, { useMemo } from 'react'
 import { Line } from 'react-chartjs-2'
-import { groupByDate, computeMetrics, formatValue } from '../utils/metrics'
+import { groupByDate, computeMetrics, METRIC_DEFS, getStatus } from '../utils/metrics'
+import { fmtValue } from '../utils/currency'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
-
-const BASE_OPTS = {
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { mode: 'index', intersect: false },
-  plugins: {
-    legend: {
-      position: 'top',
-      labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 }, color: '#6b7280' },
-    },
-  },
-  scales: {
-    x: {
-      grid: { color: '#f3f4f6' },
-      ticks: { font: { size: 11 }, color: '#9ca3af', maxTicksLimit: 10 },
-    },
-    y: {
-      grid: { color: '#f3f4f6' },
-      ticks: { font: { size: 11 }, color: '#9ca3af' },
-    },
-  },
+const STATUS_COLOR = {
+  green:   '#22c55e',
+  amber:   '#f59e0b',
+  red:     '#ef4444',
+  neutral: '#6b7280',
 }
 
-function ChartCard({ title, children }) {
-  return (
-    <div className="card">
-      <p className="text-sm font-semibold text-gray-700 mb-4">{title}</p>
-      <div style={{ height: 240 }}>{children}</div>
-    </div>
-  )
+function fmtAxisValue(value, format) {
+  if (format === 'currency') {
+    if (value >= 1000) return 'A$' + (value / 1000).toFixed(1) + 'k'
+    return 'A$' + value.toFixed(0)
+  }
+  if (format === 'percent') return value.toFixed(1) + '%'
+  if (format === 'decimal') return value.toFixed(2) + 'x'
+  return value.toFixed(0)
 }
 
-export default function TrendsTab({ filteredRows, targets }) {
-  const daily = groupByDate(filteredRows)
-  const labels = daily.map((d) => {
-    const dt = new Date(d.date)
-    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  })
-
-  const spends = daily.map((d) => +d.spend.toFixed(2))
-  const revenues = daily.map((d) => +d.revenue.toFixed(2))
-  const roasValues = daily.map((d) => {
-    const m = computeMetrics(d)
-    return +m.roas.toFixed(2)
-  })
-  const cosValues = daily.map((d) => {
-    const m = computeMetrics(d)
-    return +m.cos.toFixed(2)
-  })
-
-  const targetRoasLine = daily.map(() => targets.roas || null)
-  const targetCosLine = daily.map(() => targets.cos || null)
-
-  const revSpendData = {
-    labels,
-    datasets: [
-      {
-        label: 'Revenue',
-        data: revenues,
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16,185,129,0.06)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: 'Spend',
-        data: spends,
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99,102,241,0.06)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.3,
-        fill: true,
-      },
-    ],
-  }
-
-  const roasData = {
-    labels,
-    datasets: [
-      {
-        label: 'ROAS',
-        data: roasValues,
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245,158,11,0.06)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: 'Target',
-        data: targetRoasLine,
-        borderColor: '#6b7280',
-        borderWidth: 1.5,
-        borderDash: [6, 4],
-        pointRadius: 0,
-        fill: false,
-      },
-    ],
-  }
-
-  const cosData = {
-    labels,
-    datasets: [
-      {
-        label: 'COS%',
-        data: cosValues,
-        borderColor: '#ef4444',
-        backgroundColor: 'rgba(239,68,68,0.06)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: 'Target',
-        data: targetCosLine,
-        borderColor: '#6b7280',
-        borderWidth: 1.5,
-        borderDash: [6, 4],
-        pointRadius: 0,
-        fill: false,
-      },
-    ],
-  }
-
-  const currencyOpts = {
-    ...BASE_OPTS,
+function buildOpts(def, lineColor) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
     plugins: {
-      ...BASE_OPTS.plugins,
+      legend: { display: false },
       tooltip: {
+        backgroundColor: '#111827',
+        padding: 8,
+        cornerRadius: 8,
         callbacks: {
-          label: (ctx) => ` ${ctx.dataset.label}: $${ctx.parsed.y.toLocaleString()}`,
+          title: (items) => items[0]?.label ?? '',
+          label: (ctx) => '  ' + fmtValue(ctx.parsed.y, def.format, 'AU'),
         },
       },
     },
     scales: {
-      ...BASE_OPTS.scales,
+      x: {
+        grid: { color: '#f3f4f6', drawBorder: false },
+        border: { display: false },
+        ticks: { font: { size: 11, family: 'Inter' }, color: '#9ca3af', maxTicksLimit: 8, maxRotation: 0 },
+      },
       y: {
-        ...BASE_OPTS.scales.y,
+        grid: { color: '#f3f4f6', drawBorder: false },
+        border: { display: false },
         ticks: {
-          ...BASE_OPTS.scales.y.ticks,
-          callback: (v) => '$' + (v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v),
+          font: { size: 11, family: 'Inter' },
+          color: '#9ca3af',
+          callback: (v) => fmtAxisValue(v, def.format),
         },
       },
     },
   }
+}
+
+export default function TrendsTab({ filteredRows, metrics, targets }) {
+  const daily = useMemo(
+    () => groupByDate(filteredRows).map((day) => ({ date: day.date, ...computeMetrics(day) })),
+    [filteredRows]
+  )
+
+  const labels = daily.map((d) =>
+    new Date(d.date + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+  )
+
+  if (daily.length === 0) {
+    return (
+      <div className="card text-center py-16 text-[#9ca3af] text-sm">
+        No data for the selected period.
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-4">
-      <ChartCard title="Daily Revenue vs Spend">
-        <Line data={revSpendData} options={currencyOpts} />
-      </ChartCard>
-      <ChartCard title="ROAS Over Time">
-        <Line data={roasData} options={BASE_OPTS} />
-      </ChartCard>
-      <ChartCard title="COS% Over Time">
-        <Line data={cosData} options={BASE_OPTS} />
-      </ChartCard>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {METRIC_DEFS.map((def) => {
+        const actual    = metrics[def.key] ?? 0
+        const target    = targets[def.key] ?? 0
+        const status    = getStatus(def.key, actual, target, def.higherIsBetter)
+        const lineColor = STATUS_COLOR[status]
+
+        const chartData = {
+          labels,
+          datasets: [
+            {
+              data: daily.map((d) => d[def.key] ?? 0),
+              borderColor: lineColor,
+              backgroundColor: lineColor + '18',
+              fill: true,
+              tension: 0.35,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              borderWidth: 2,
+              pointBorderColor: lineColor,
+              pointBackgroundColor: '#ffffff',
+            },
+          ],
+        }
+
+        return (
+          <div key={def.key} className="card">
+            <p className="metric-label mb-4">{def.label}</p>
+            <div style={{ height: 176 }}>
+              <Line data={chartData} options={buildOpts(def, lineColor)} />
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

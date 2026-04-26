@@ -1,113 +1,124 @@
 import React, { useState } from 'react'
-import { METRIC_DEFS, formatValue, getStatus, DEFAULT_TARGETS } from '../utils/metrics'
+import { METRIC_DEFS, getStatus, DEFAULT_TARGETS } from '../utils/metrics'
+import { fmtValue } from '../utils/currency'
 
-const STATUS_BAR_COLOR = {
-  green: 'bg-green-500',
-  amber: 'bg-amber-400',
-  red: 'bg-red-500',
-  neutral: 'bg-gray-300',
+const STATUS_COLOR = {
+  green:   '#22c55e',
+  amber:   '#f59e0b',
+  red:     '#ef4444',
+  neutral: '#e5e7eb',
 }
 
-function ProgressBar({ actual, target, higherIsBetter }) {
-  const status = getStatus('', actual, target, higherIsBetter)
-  const pct = target > 0 ? Math.min((actual / target) * 100, 100) : 0
-  return (
-    <div className="mt-1.5">
-      <div className="flex justify-between text-xs text-gray-400 mb-1">
-        <span>0%</span>
-        <span>{pct.toFixed(0)}% of target</span>
-        <span>100%</span>
-      </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${STATUS_BAR_COLOR[status]}`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  )
+const STATUS_BADGE = {
+  green:   { label: 'On Track',  cls: 'badge-green' },
+  amber:   { label: 'Near',      cls: 'badge-amber' },
+  red:     { label: 'Off Track', cls: 'badge-red'   },
+  neutral: { label: '',          cls: ''             },
 }
+
+const STEP = { currency: 100, percent: 1, decimal: 0.1, integer: 10 }
 
 export default function TargetsTab({ metrics, targets, setTargets }) {
-  const [draft, setDraft] = useState(() => ({ ...targets }))
+  const [draft, setDraft] = useState({ ...targets })
   const [saved, setSaved] = useState(false)
 
-  function handleChange(key, val) {
-    setDraft((prev) => ({ ...prev, [key]: parseFloat(val) || 0 }))
-    setSaved(false)
-  }
-
-  function handleSave() {
+  function save() {
     setTargets(draft)
     localStorage.setItem('psd_targets', JSON.stringify(draft))
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
-  function handleReset() {
-    setDraft({ ...DEFAULT_TARGETS })
-    setSaved(false)
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">Performance Targets</h2>
-          <p className="text-sm text-gray-400 mt-0.5">Set targets to track progress against KPIs</p>
+          <h2 className="text-sm font-semibold text-[#111827]">Monthly Targets</h2>
+          <p className="helper-text mt-0.5">Saved to your browser</p>
         </div>
         <div className="flex gap-2">
           <button
-            onClick={handleReset}
-            className="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            onClick={() => { setDraft({ ...DEFAULT_TARGETS }); setSaved(false) }}
+            className="px-3 py-1.5 text-sm rounded-lg text-[#6b7280] bg-white transition-colors hover:bg-[#f9fafb]"
+            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
           >
             Reset
           </button>
           <button
-            onClick={handleSave}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              saved
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-900 text-white hover:bg-gray-700'
-            }`}
+            onClick={save}
+            className="px-4 py-1.5 text-sm font-semibold rounded-lg transition-all"
+            style={saved
+              ? { background: '#22c55e', color: '#fff' }
+              : { background: '#111827', color: '#fff' }
+            }
           >
-            {saved ? 'Saved!' : 'Save Targets'}
+            {saved ? '✓ Saved' : 'Save'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {METRIC_DEFS.map((def) => {
-          const actual = metrics[def.key]
-          const target = draft[def.key]
+          const actual  = metrics[def.key] ?? 0
+          const target  = draft[def.key]   ?? 0
+          const status  = getStatus(def.key, actual, target, def.higherIsBetter)
+          const badge   = STATUS_BADGE[status]
+          const pct     = target > 0 ? Math.min((actual / target) * 100, 100) : null
+
           return (
-            <div key={def.key} className="card">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <label className="metric-label block mb-1">{def.label}</label>
-                  <p className="text-xs text-gray-400 mb-3">{def.description}</p>
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">Actual</p>
-                      <p className="text-lg font-semibold text-gray-900">{formatValue(actual, def.format)}</p>
-                    </div>
-                    <div className="text-gray-200 mt-4">→</div>
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Target</label>
-                      <input
-                        type="number"
-                        value={target || ''}
-                        onChange={(e) => handleChange(def.key, e.target.value)}
-                        className="w-28 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-200 transition-colors"
-                        placeholder="0"
-                        min="0"
-                        step={def.format === 'decimal' ? '0.1' : def.format === 'percent' ? '1' : '100'}
-                      />
-                    </div>
+            <div key={def.key} className="card flex flex-col">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-2">
+                <span className="metric-label leading-tight">{def.label}</span>
+                {badge.label && <span className={badge.cls}>{badge.label}</span>}
+              </div>
+
+              {/* Actual */}
+              <p className="text-[22px] font-bold tracking-tight text-[#111827] leading-none mb-1">
+                {fmtValue(actual, def.format, 'AU')}
+              </p>
+              <p className="helper-text mb-3">Actual</p>
+
+              {/* Target input */}
+              <div className="mb-3">
+                <label className="helper-text block mb-1">Target</label>
+                <input
+                  type="number"
+                  value={target || ''}
+                  onChange={(e) => {
+                    setDraft((p) => ({ ...p, [def.key]: parseFloat(e.target.value) || 0 }))
+                    setSaved(false)
+                  }}
+                  className="w-full px-2.5 py-1.5 text-sm rounded-lg text-[#111827] outline-none transition-colors"
+                  style={{
+                    background: '#f8f9fa',
+                    border: '1px solid #e5e7eb',
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = '#5b4fe9')}
+                  onBlur={(e)  => (e.currentTarget.style.borderColor = '#e5e7eb')}
+                  placeholder="0"
+                  min="0"
+                  step={STEP[def.format] ?? 1}
+                />
+              </div>
+
+              {/* Progress */}
+              {pct !== null && (
+                <div className="mb-3">
+                  <div className="flex justify-end mb-1">
+                    <span className="helper-text">{pct.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-[5px] rounded-full overflow-hidden" style={{ background: '#f3f4f6' }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, background: STATUS_COLOR[status] }}
+                    />
                   </div>
                 </div>
-              </div>
-              <ProgressBar actual={actual} target={target} higherIsBetter={def.higherIsBetter} />
+              )}
+
+              {/* Definition */}
+              <p className="helper-text mt-auto pt-1">{def.description}</p>
             </div>
           )
         })}
