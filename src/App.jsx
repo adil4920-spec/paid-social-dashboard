@@ -220,7 +220,7 @@ export default function App() {
             <NoDataState account={account} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {tab === 'campaigns' && <CampaignTable filteredRows={filteredRows} />}
+              {tab === 'campaigns' && <CampaignTable filteredRows={filteredRows} rows={rows} />}
             </div>
           )}
         </main>

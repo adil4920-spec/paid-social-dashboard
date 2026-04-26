@@ -7,6 +7,106 @@ import {
   groupByDate, computeMetrics, aggregateRows,
 } from '../utils/metrics'
 import { fmtValue } from '../utils/currency'
+import { computeWindowData } from '../utils/dailySummary'
+
+// ── Campaign signals ──────────────────────────────────────────────────────────
+const SIGNAL_CFG = {
+  'Scale':                   { label: 'Scale ↑',     color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
+  'Volume opportunity':      { label: 'Scale ↑',     color: '#15803D', bg: 'rgba(22,163,74,0.08)',   border: 'rgba(22,163,74,0.25)'   },
+  'Defund':                  { label: 'Cut ↓',       color: '#B91C1C', bg: 'rgba(185,28,28,0.08)',   border: 'rgba(185,28,28,0.25)'   },
+  'Restructure':             { label: 'Restructure', color: '#C2410C', bg: 'rgba(194,65,12,0.08)',   border: 'rgba(194,65,12,0.25)'   },
+  'Investigate attribution': { label: 'Investigate', color: '#92400E', bg: 'rgba(146,64,14,0.08)',   border: 'rgba(146,64,14,0.25)'   },
+  'Monitor':                 { label: 'Monitor',     color: '#D97706', bg: 'rgba(217,119,6,0.08)',   border: 'rgba(217,119,6,0.25)'   },
+  'Too new':                 { label: 'Too new',     color: '#6B7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)'  },
+  'Healthy':                 { label: 'Hold',        color: '#6B7280', bg: 'rgba(107,114,128,0.08)', border: 'rgba(107,114,128,0.2)'  },
+}
+
+function buildCampaignDetail(c) {
+  const cfg = SIGNAL_CFG[c.campaign_health] ?? SIGNAL_CFG['Healthy']
+  const spendShare = (c.spendSharePct ?? 0).toFixed(0)
+  const iShare     = (c.iPurchaseSharePct ?? 0).toFixed(0)
+  const gap        = c.roasGapPct
+
+  const bullets = [
+    `L7 ROAS ${c.l7.roas.toFixed(2)}x · A$${Math.round(c.l7.spend)} spend · ${Math.round(c.l7.purchases)} purchases · Trend: ${c.trendDirection}`,
+    c.l7.iRoas > 0
+      ? `Incremental ROAS ${c.l7.iRoas.toFixed(2)}x${gap != null ? ` · Attribution gap ${gap.toFixed(0)}%` : ''}`
+      : null,
+    `${spendShare}% of account spend · ${iShare}% of incremental purchases`,
+  ].filter(Boolean)
+
+  let reasoning
+  const h = c.campaign_health
+  if (h === 'Scale' || h === 'Volume opportunity') {
+    if ((c.iPurchaseSharePct ?? 0) > (c.spendSharePct ?? 0) + 5) {
+      reasoning = `Generating ${iShare}% of incremental purchases on only ${spendShare}% of spend — budget allocation isn't keeping up with its real contribution. Increase budget 20–30%.`
+    } else {
+      reasoning = `ROAS ${c.l7.roas.toFixed(2)}x with a ${c.trendDirection.toLowerCase()} trend and incremental signals confirmed. Strong scale candidate — increase budget 20–30%.`
+    }
+  } else if (h === 'Defund') {
+    if ((c.spendSharePct ?? 0) > (c.iPurchaseSharePct ?? 0) + 5) {
+      reasoning = `Consuming ${spendShare}% of spend but only ${iShare}% of incremental purchases. The gap means this campaign is mostly capturing demand that would have converted organically. Reduce budget 20–30% or cut entirely.`
+    } else {
+      reasoning = `Both platform ROAS and incremental signals are below account median. Performance has deteriorated below viable thresholds. Reduce or cut.`
+    }
+  } else if (h === 'Restructure') {
+    reasoning = `Performance is declining but the issue is structural — ad set mix, audience targeting, or bid strategy needs rethinking. A simple budget cut won't fix the underlying problem.`
+  } else if (h === 'Investigate attribution') {
+    reasoning = `Platform ROAS looks reasonable but the attribution gap is ${gap?.toFixed(0) ?? 'high'}% — Meta is crediting this campaign for organic or retargeted conversions it didn't drive. Don't scale on platform numbers alone. Check view-through window overlap or run a geo holdout.`
+  } else if (h === 'Monitor') {
+    reasoning = `Mixed signals — no clear action yet. Some metrics are softening but there's not enough consistent direction to cut or scale. Review again in 3–5 days.`
+  } else if (h === 'Too new') {
+    reasoning = `Only ${c.daysActive} days of data — not enough to make a reliable call. Check back after at least 7 days.`
+  } else {
+    reasoning = `Performance is stable within normal range. Hold at current budget and monitor.`
+  }
+
+  return { cfg, bullets, reasoning }
+}
+
+function SignalModal({ campName, detail, onClose }) {
+  useEffect(() => {
+    const fn = e => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', fn)
+    return () => document.removeEventListener('keydown', fn)
+  }, [onClose])
+
+  const { cfg, bullets, reasoning } = detail
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'rgba(0,0,0,0.4)' }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A', lineHeight: 1.4, wordBreak: 'break-word' }}>{campName}</span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start',
+              padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+              color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
+            }}>{cfg.label}</span>
+          </div>
+          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid #EFEFEC', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A3A3A3', fontSize: 14, flexShrink: 0 }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+          {bullets.map((b, i) => (
+            <p key={i} style={{ fontSize: 13, color: '#737373', lineHeight: 1.6, margin: 0 }}>{b}</p>
+          ))}
+        </div>
+
+        <div style={{ borderTop: '1px solid #EFEFEC', paddingTop: 16 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#A3A3A3', margin: '0 0 8px' }}>Recommendation</p>
+          <p style={{ fontSize: 13, color: '#1A1A1A', lineHeight: 1.7, margin: 0 }}>{reasoning}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Column-set config ─────────────────────────────────────────────────────
 const COL_SET_TABS = [
@@ -306,9 +406,10 @@ function SummaryStats({ totals, levelLabel, name }) {
 }
 
 // ── Sortable data table (shared for campaigns / adsets / ads) ──────────────
-function SortableTable({ data, nameKey, nameLabel, onRowClick, rawRows, cols = COL_SETS.standard }) {
-  const [sort,      setSort]      = useState({ key: 'spend', dir: -1 })
-  const [colWidths, setColWidths] = useState({ ...DEFAULT_WIDTHS })
+function SortableTable({ data, nameKey, nameLabel, onRowClick, rawRows, cols = COL_SETS.standard, signals }) {
+  const [sort,        setSort]        = useState({ key: 'spend', dir: -1 })
+  const [colWidths,   setColWidths]   = useState({ ...DEFAULT_WIDTHS })
+  const [openSignal,  setOpenSignal]  = useState(null)
 
   const sorted = useMemo(() =>
     [...data].sort((a, b) => {
@@ -377,9 +478,25 @@ function SortableTable({ data, nameKey, nameLabel, onRowClick, rawRows, cols = C
                     style={col.isName
                       ? { whiteSpace: 'nowrap' }
                       : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {col.isName
-                    ? <span className="font-medium text-[#111827]">{row[nameKey]}</span>
-                    : col.colorFn
+                  {col.isName ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <span className="font-medium text-[#111827]" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row[nameKey]}</span>
+                      {signals?.[row[nameKey]] && (() => {
+                        const sig = signals[row[nameKey]]
+                        return (
+                          <button
+                            onClick={e => { e.stopPropagation(); setOpenSignal({ name: row[nameKey], detail: sig }) }}
+                            style={{
+                              flexShrink: 0, padding: '2px 8px', borderRadius: 5,
+                              fontSize: 11, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+                              color: sig.cfg.color, background: sig.cfg.bg, border: `1px solid ${sig.cfg.border}`,
+                              whiteSpace: 'nowrap', lineHeight: 1.4,
+                            }}
+                          >{sig.cfg.label}</button>
+                        )
+                      })()}
+                    </div>
+                  ) : col.colorFn
                     ? <span style={{ color: col.colorFn(row[col.key]), fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmtCol(col, row)}</span>
                     : fmtCol(col, row)
                   }
@@ -389,6 +506,9 @@ function SortableTable({ data, nameKey, nameLabel, onRowClick, rawRows, cols = C
           ))}
         </tbody>
       </table>
+      {openSignal && (
+        <SignalModal campName={openSignal.name} detail={openSignal.detail} onClose={() => setOpenSignal(null)} />
+      )}
     </div>
   )
 }
@@ -943,7 +1063,7 @@ function CampaignOverview({ filteredRows }) {
 }
 
 // ── Level 1: Campaign list ─────────────────────────────────────────────────
-function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSelectAd, cols, picker, groupId, setGroupId }) {
+function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSelectAd, cols, picker, groupId, setGroupId, signalMap }) {
   const groupOpt = GROUP_TABS.find(t => t.id === groupId)
   const [search, setSearch] = useState('')
 
@@ -1009,6 +1129,7 @@ function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSel
           }
           rawRows={filteredRows}
           cols={cols}
+          signals={groupId === 'campaign_name' ? signalMap : undefined}
         />
       </div>
     </div>
@@ -1017,7 +1138,7 @@ function CampaignListView({ filteredRows, onSelectCampaign, onSelectAdset, onSel
 
 
 // ── Main export ────────────────────────────────────────────────────────────
-export default function CampaignTable({ filteredRows }) {
+export default function CampaignTable({ filteredRows, rows }) {
   const [colSet,    setColSet]    = useState('standard')
   const [groupId,   setGroupId]   = useState('campaign_name')
   const [drillView, setDrillView] = useState('campaigns')
@@ -1026,6 +1147,16 @@ export default function CampaignTable({ filteredRows }) {
   const [ad,        setAd]        = useState(null)
 
   const cols = COL_SETS[colSet] ?? COL_SETS.standard
+
+  const signalMap = useMemo(() => {
+    const src = rows?.length ? rows : filteredRows
+    if (!src.length) return {}
+    const maxDate = src.reduce((m, r) => r.date > m ? r.date : m, src[0].date)
+    const { campaignData } = computeWindowData(src, maxDate)
+    const map = {}
+    for (const c of campaignData) map[c.name] = buildCampaignDetail(c)
+    return map
+  }, [rows, filteredRows])
 
   const picker = <ColPicker colSet={colSet} setColSet={setColSet} />
 
@@ -1079,6 +1210,7 @@ export default function CampaignTable({ filteredRows }) {
         picker={picker}
         groupId={groupId}
         setGroupId={setGroupId}
+        signalMap={signalMap}
       />
     )
   }
