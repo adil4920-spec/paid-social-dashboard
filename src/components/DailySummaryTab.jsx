@@ -425,7 +425,7 @@ export default function DailySummaryTab({ rows = [], targets = {} }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
             <span style={{ fontSize: 11, color: '#A3A3A3' }}>{today}</span>
             {narrative && narrative.length > 0 && (
-              <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, listStyleType: 'disc', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {narrative.map((bullet, i) => (
                   <li key={i} style={{ fontSize: 13, color: '#3D3D3D', lineHeight: 1.65 }}>{bullet}</li>
                 ))}
