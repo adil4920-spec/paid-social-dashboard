@@ -6,6 +6,7 @@ import { loadSavedRange, saveRange, computePreset, getDataBounds } from './utils
 import DateRangePicker     from './components/DateRangePicker'
 import CampaignTable       from './components/CampaignTable'
 import GlossaryTab         from './components/GlossaryTab'
+import TrackerTab          from './components/TrackerTab'
 import MorningSnapshotTab  from './components/MorningSnapshotTab'
 import DailySummaryTab     from './components/DailySummaryTab'
 
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'snapshot',   label: 'Morning Snapshot' },
   { id: 'summary',    label: 'Daily Summary'    },
   { id: 'campaigns',  label: 'Campaigns'        },
+  { id: 'tracker',    label: 'Tracker'          },
   { id: 'glossary',   label: 'Glossary'         },
 ]
 
@@ -214,6 +216,8 @@ export default function App() {
             <MorningSnapshotTab rows={rows} pacerData={pacerData} dateRange={dateRange} />
           ) : tab === 'summary' ? (
             <DailySummaryTab rows={rows} />
+          ) : tab === 'tracker' ? (
+            <TrackerTab />
           ) : tab === 'glossary' ? (
             <GlossaryTab />
           ) : !hasData ? (
