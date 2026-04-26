@@ -4,29 +4,16 @@ import { usePacerData }    from './hooks/usePacerData'
 import { aggregateRows, computeMetrics, filterByDateRange, DEFAULT_TARGETS } from './utils/metrics'
 import { loadSavedRange, saveRange, computePreset, getDataBounds } from './utils/dateRange'
 import DateRangePicker     from './components/DateRangePicker'
-import OverviewTab         from './components/OverviewTab'
-import TrendsTab           from './components/TrendsTab'
-import TargetsTab          from './components/TargetsTab'
 import CampaignTable       from './components/CampaignTable'
-import CreativeTab         from './components/CreativeTab'
-import IncrementalityTab   from './components/IncrementalityTab'
-import PacerTab            from './components/PacerTab'
-import InsightsTab         from './components/InsightsTab'
 import GlossaryTab         from './components/GlossaryTab'
 import MorningSnapshotTab  from './components/MorningSnapshotTab'
-import DailySummaryTab    from './components/DailySummaryTab'
+import DailySummaryTab     from './components/DailySummaryTab'
+
 const TABS = [
-  { id: 'snapshot',        label: 'Morning Snapshot' },
-  { id: 'summary',         label: 'Daily Summary' },
-  { id: 'campaigns',      label: 'Campaigns'      },
-  { id: 'creative',       label: 'Creative',       wip: true },
-  { id: 'incrementality', label: 'Incrementality', wip: true },
-  { id: 'overview',       label: 'Overview',        wip: true },
-  { id: 'insights',       label: 'Insights',        wip: true },
-  { id: 'trends',         label: 'Trends',          wip: true },
-  { id: 'targets',        label: 'Targets',         wip: true },
-  { id: 'pacer',          label: 'Pacer',           wip: true },
-  { id: 'glossary',       label: 'Glossary'         },
+  { id: 'snapshot',   label: 'Morning Snapshot' },
+  { id: 'summary',    label: 'Daily Summary'    },
+  { id: 'campaigns',  label: 'Campaigns'        },
+  { id: 'glossary',   label: 'Glossary'         },
 ]
 
 const CLIENTS = ['Bydee', 'Bed Threads', 'Vida Glow', 'Arcteryx']
@@ -113,7 +100,6 @@ export default function App() {
   const { rows, loading, usingDemo } = useData()
   const { data: pacerData }          = usePacerData()
   const [tab,       setTab]       = useState('snapshot')
-  const [targets,   setTargets]   = useState(loadTargets)
   const [account,   setAccount]   = useState(loadAccount)
   const [dateRange, setDateRange] = useState(() => {
     const saved = loadSavedRange()
@@ -144,7 +130,6 @@ export default function App() {
     () => filterByDateRange(rows, dateRange.start, dateRange.end),
     [rows, dateRange]
   )
-  const metrics = useMemo(() => computeMetrics(aggregateRows(filteredRows)), [filteredRows])
 
   if (loading) {
     return (
@@ -226,23 +211,16 @@ export default function App() {
         {/* Content */}
         <main style={{ flex: 1, background: '#FAFAF9', padding: 28, minWidth: 0, overflowX: 'hidden' }}>
           {tab === 'snapshot' ? (
-            <MorningSnapshotTab rows={rows} targets={targets} pacerData={pacerData} dateRange={dateRange} />
+            <MorningSnapshotTab rows={rows} pacerData={pacerData} dateRange={dateRange} />
           ) : tab === 'summary' ? (
-            <DailySummaryTab rows={rows} targets={targets} />
+            <DailySummaryTab rows={rows} />
           ) : tab === 'glossary' ? (
             <GlossaryTab />
           ) : !hasData ? (
             <NoDataState account={account} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {tab === 'campaigns'      && <CampaignTable filteredRows={filteredRows} />}
-              {tab === 'creative'       && <><WipBanner /><CreativeTab filteredRows={filteredRows} /></>}
-              {tab === 'incrementality' && <><WipBanner /><IncrementalityTab filteredRows={filteredRows} /></>}
-              {tab === 'overview'       && <><WipBanner /><OverviewTab rows={rows} metrics={metrics} targets={targets} dateRange={dateRange} pacerData={pacerData} /></>}
-              {tab === 'insights'       && <><WipBanner /><InsightsTab rows={rows} pacerData={pacerData} /></>}
-              {tab === 'trends'         && <><WipBanner /><TrendsTab filteredRows={filteredRows} metrics={metrics} targets={targets} /></>}
-              {tab === 'targets'        && <><WipBanner /><TargetsTab metrics={metrics} targets={targets} setTargets={setTargets} /></>}
-              {tab === 'pacer'          && <><WipBanner /><PacerTab pacerData={pacerData} /></>}
+              {tab === 'campaigns' && <CampaignTable filteredRows={filteredRows} />}
             </div>
           )}
         </main>
